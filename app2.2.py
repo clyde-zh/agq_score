@@ -320,9 +320,6 @@ def main():
         except Exception as e:
             st.stop()
 
-        if "shuffled_model_order" in st.session_state:
-            del st.session_state.shuffled_model_order
-
         # 跳转到目标页面
         st.session_state.page = qid_to_index[selected_qid]
         st.rerun()
