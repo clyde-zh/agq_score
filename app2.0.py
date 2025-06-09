@@ -16,14 +16,7 @@ def render_latex_textblock(text):
             res+=part
         else:
             res+=part.replace("\n","<br>")
-    st.markdown(res, unsafe_allow_html=True)
-    # 使用 div 包裹内容，并设置字体大小
-    # styled_text = f"""
-    # <div style="font-size: 30px; line-height: 1.6;">
-    #     {res}
-    # </div>
-    # """
-    # st.markdown(styled_text, unsafe_allow_html=True)
+    st.markdown(res,unsafe_allow_html=True)
 
 def merge_scores_to_data(data, scores_dict):
     updated_data = []
@@ -101,11 +94,11 @@ def render_scoring(qid: str):
     teacher_id = st.session_state.teacher_id
 
     dimensions = {
-        "知识点匹配度：主要衡量模型生成题目是否能够准确识别并体现用户输入的知识点，确保所生成的题目符合用户指定的知识点。": {"type": "radio", "options": [0, 1, 2]},
-        "题型匹配度：主要考察题目类型是否与用户选择的题型（选择、填空、解答等）一致，且需符合所选题型的格式规范与标准要求。选择题应包含4个选项；填空题需给出填空横线，或其他形式能明显看出需要进行填空；解答题可包含选择、填空、计算等多种题型。": {"type": "radio", "options": [0, 1, 2]},
-        "题目准确性：主要考察生成题目的表达是否清晰、指向是否明确，术语使用是否规范标准，确保学生能准确理解题意，题目可正常解答且答案确定。": {"type": "radio", "options": [0, 1, 2]},
-        "解析准确性：主要考察模型生成题目后所提供解析的正确性、严谨性与详细程度，且解析内容所涉及的知识点与目标学段相适配。": {"type": "radio", "options": [0, 1, 2]},
-        "素养导向性：主要考察生成的题目是否设置了具体的情景，如文化生活场景、学科应用情景等。": {"type": "radio", "options": [0, 2]},
+        "知识点匹配度（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
+        "题型匹配度（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
+        "题目准确性（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
+        "解析准确性（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
+        "素养导向性（0,2）": {"type": "radio", "options": [0, 2]},
         "题目难度（简单,中等,困难）": {"type": "radio", "options": ["简单", "中等", "困难"]},
         "模型回答质量排名（第1名,第2名,第3名）": {"type": "select", "options": ["未评分", "1", "2", "3"]}
     }
@@ -253,10 +246,10 @@ def main():
     # 确保 teacher_id 已经设置
     if "teacher_id" not in st.session_state:
         # 如果没有 teacher_id，则显示输入界面
-        st.title("教师评分系统")
+        st.title("教师评测系统")
         st.markdown("请输入您的教师编号（例如 T001）：")
         teacher_input = st.text_input("教师编号", "")
-        if st.button("开始评分") and teacher_input.strip():
+        if st.button("开始评测") and teacher_input.strip():
             st.session_state.teacher_id = teacher_input.strip().upper()
             st.rerun()
         return
@@ -300,7 +293,7 @@ def main():
     st.sidebar.progress(completion_rate / 100)
 
     # ========== 添加下拉选择器 + 自动保存跳转 ==========
-    st.markdown("#### 🧭 快速跳转到指定题目")
+    st.markdown("### 🧭 快速跳转到指定题目")
 
     # 构建 q_id 到 page 的映射
     qid_to_index = {item.get("q_id", f"id_{i}"): i for i, item in enumerate(data)}
@@ -336,56 +329,32 @@ def main():
     current = data[idx]
     qid = current.get("q_id", f"id_{idx}")
 
-    st.markdown(f"##### 第 {idx + 1} / {total_pages} 条样本")
+    st.markdown(f"#### 第 {idx + 1} / {total_pages} 条样本")
     st.markdown(f"**样本 ID：** {qid}")
 
     display(current, qid)
-
-    # 获取当前问题的评分状态
-    is_current_question_complete = is_question_scored(qid, scores)
-    if is_current_question_complete:
-        st.success("✅ 当前题目已完成评分和评语")
-    else:
-        st.warning("⚠️ 当前题目尚未完成评分和评语")
+    if not is_question_scored(qid, scores):
+        st.warning("⚠️ 当前题目有评分项或评语未填写，请先完成后再继续。")
 
     # ========== 页面导航 + 评分检查 ==========
     col1, col2, col3 = st.columns([1, 1, 1])
 
-    def save_current_scores(teacher_id, data, scores):
-        """封装保存函数，供多个按钮调用"""
-        merged_data = merge_scores_to_data(data, scores)
-        try:
-            with open(f"data_{teacher_id}.json", "w", encoding="utf-8") as f:
-                json.dump(merged_data, f, indent=2, ensure_ascii=False)
-            return True
-        except Exception as e:
-            st.error(f"❌ 保存失败：{str(e)}")
-            return False
-
     with col1:
         if idx > 0:
-            # 检查是否已完成评分
-            is_current_complete = is_question_scored(qid, scores)
-
-            if st.button("⬅️ 上一条", disabled=not is_current_complete, use_container_width=True):
-                if is_current_complete:
-                    teacher_id = st.session_state.teacher_id
-                    data = st.session_state.raw_data
-                    scores = st.session_state.all_scores[teacher_id]["result"]
-                    success = save_current_scores(teacher_id, data, scores)
-
-                    if success:
-                        # 清除随机模型顺序
-                        if "shuffled_model_order" in st.session_state:
-                            del st.session_state.shuffled_model_order
-                        st.session_state.page -= 1
-                        st.rerun()
+            if st.button("⬅️ 上一条"):
+                qid = data[idx].get("q_id", f"id_{idx}")
+                scores = st.session_state.all_scores[teacher_id]["result"]
+                if not is_question_scored(qid, scores):
+                    st.session_state.confirm_navigate = ("prev", teacher_id, qid)
                 else:
-                    st.warning("⚠️ 当前题目尚未完成评分和评语，请先完成后再继续。")
-
+                    # 清除随机顺序标记
+                    if "shuffled_model_order" in st.session_state:
+                        del st.session_state.shuffled_model_order
+                    st.session_state.page -= 1
+                    st.rerun()
     with col2:
         # ========== 手动保存当前页评分 ==========
-        if st.button("💾 保存当前页评分", use_container_width=True):
+        if st.button("💾 保存当前页评分"):
             teacher_id = st.session_state.teacher_id
             idx = st.session_state.page
             data = st.session_state.raw_data
@@ -393,36 +362,31 @@ def main():
 
             scores = st.session_state.all_scores[teacher_id]["result"]
 
-            # 调用 save_current_scores 函数保存数据
-            success = save_current_scores(teacher_id, data, scores)
+            # 合并当前评分到原始数据
+            merged_data = merge_scores_to_data(data, scores)
 
-            if success:
+            # 写入文件
+            try:
+                with open(f"data_{teacher_id}.json", "w", encoding="utf-8") as f:
+                    json.dump(merged_data, f, indent=2, ensure_ascii=False)
                 st.success("✅ 当前页评分已手动保存。")
-            else:
-                st.error("❌ 保存失败，请检查错误信息。")
-
+            except Exception as e:
+                st.error(f"❌ 保存失败：{str(e)}")
     with col3:
         if idx < total_pages - 1:
-            # 检查是否已完成评分
-            is_current_complete = is_question_scored(qid, scores)
-
-            if st.button("➡️ 下一条", disabled=not is_current_complete, use_container_width=True):
-                if is_current_complete:
-                    teacher_id = st.session_state.teacher_id
-                    data = st.session_state.raw_data
-                    scores = st.session_state.all_scores[teacher_id]["result"]
-                    success = save_current_scores(teacher_id, data, scores)
-
-                    if success:
-                        # 清除随机模型顺序
-                        if "shuffled_model_order" in st.session_state:
-                            del st.session_state.shuffled_model_order
-                        st.session_state.page += 1
-                        st.rerun()
+            if st.button("➡️ 下一条"):
+                qid = data[idx].get("q_id", f"id_{idx}")
+                scores = st.session_state.all_scores[teacher_id]["result"]
+                if not is_question_scored(qid, scores):
+                    st.session_state.confirm_navigate = ("next", teacher_id, qid)
                 else:
-                    st.warning("⚠️ 当前题目尚未完成评分和评语，请先完成后再继续。")
+                    # 清除随机顺序标记
+                    if "shuffled_model_order" in st.session_state:
+                        del st.session_state.shuffled_model_order
+                    st.session_state.page += 1
+                    st.rerun()
 
-    # ========== 处理确认切换逻辑（备用路径）==========
+    # ========== 处理确认切换逻辑 ==========
     if st.session_state.confirm_navigate:
         direction, teacher_id, qid = st.session_state.confirm_navigate
         st.warning("⚠️ 当前题目尚未完成评分，确定要切换吗？")
@@ -468,11 +432,6 @@ if __name__ == "__main__":
             .block-container {
                 padding-left: 2rem;
                 padding-right: 2rem;
-            }
-            body, .stApp {
-                font-family: 'Noto Sans SC', sans-serif;
-                font-size: 36px; /* 设置全局字体大小 */
-                color: black;
             }
         </style>
     """, unsafe_allow_html=True)
