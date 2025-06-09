@@ -54,40 +54,101 @@ def load_scores(teacher_id):
         return {}
 
 # ========== 展示布局的函数 ==========
+# def display(message, qid):
+#     st.markdown("###### 用户需求：")
+#     st.markdown(message["query"])
+#
+#     st.markdown("##### 📊 模型 A / B / C 输出内容展示")
+#
+#     # 定义原始模型键列表
+#     original_models = ["spark", "glm", "o4"]
+#
+#     # 获取模型输出字段
+#     gen_questions = {
+#         "spark": message["gen_question_spark"],
+#         "glm": message["gen_question_glm"],
+#         "o4": message["gen_question_o4"]
+#     }
+#
+#     # 如果尚未设置，则生成并保存随机顺序
+#     if "shuffled_model_order" not in st.session_state:
+#         shuffled_order = random.sample(original_models, k=3)
+#         st.session_state.shuffled_model_order = shuffled_order
+#     else:
+#         shuffled_order = st.session_state.shuffled_model_order
+#
+#     # 固定列标题为“模型 A / B / C”
+#     col_a, col_b, col_c = st.columns(3)
+#     cols = [col_a, col_b, col_c]
+#
+#     for i, model_key in enumerate(shuffled_order):
+#         with cols[i]:
+#             st.markdown("##### 模型 " + chr(65 + i))  # 固定显示 A/B/C 标题
+#             render_latex_textblock(gen_questions[model_key])
+#
+#     # 这里是评分表单
+#     render_scoring(qid)
 def display(message, qid):
     st.markdown("###### 用户需求：")
     st.markdown(message["query"])
 
-    st.markdown("##### 📊 模型 A / B / C 输出内容展示")
+    # ========== 使用双列布局 ==========
+    col_left, col_right = st.columns([2, 2])  # 左右比例为 3:2
 
-    # 定义原始模型键列表
-    original_models = ["spark", "glm", "o4"]
+    with col_left:
+        st.markdown("##### 📊 模型 A / B / C 输出内容展示")
 
-    # 获取模型输出字段
-    gen_questions = {
-        "spark": message["gen_question_spark"],
-        "glm": message["gen_question_glm"],
-        "o4": message["gen_question_o4"]
-    }
+        # 定义原始模型键列表
+        original_models = ["spark", "glm", "o4"]
 
-    # 如果尚未设置，则生成并保存随机顺序
-    if "shuffled_model_order" not in st.session_state:
-        shuffled_order = random.sample(original_models, k=3)
-        st.session_state.shuffled_model_order = shuffled_order
-    else:
-        shuffled_order = st.session_state.shuffled_model_order
+        # 获取模型输出字段
+        gen_questions = {
+            "spark": message["gen_question_spark"],
+            "glm": message["gen_question_glm"],
+            "o4": message["gen_question_o4"]
+        }
 
-    # 固定列标题为“模型 A / B / C”
-    col_a, col_b, col_c = st.columns(3)
-    cols = [col_a, col_b, col_c]
+        # 如果尚未设置，则生成并保存随机顺序
+        if "shuffled_model_order" not in st.session_state:
+            shuffled_order = random.sample(original_models, k=3)
+            st.session_state.shuffled_model_order = shuffled_order
+        else:
+            shuffled_order = st.session_state.shuffled_model_order
 
-    for i, model_key in enumerate(shuffled_order):
-        with cols[i]:
-            st.markdown("##### 模型 " + chr(65 + i))  # 固定显示 A/B/C 标题
-            render_latex_textblock(gen_questions[model_key])
+        # 固定列标题为“模型 A / B / C”
+        col_a, col_b, col_c = st.columns(3)
+        cols = [col_a, col_b, col_c]
 
-    # 这里是评分表单
-    render_scoring(qid)
+        for i, model_key in enumerate(shuffled_order):
+            with cols[i]:
+                st.markdown("##### 模型 " + chr(65 + i))  # 固定显示 A/B/C 标题
+                render_latex_textblock(gen_questions[model_key])
+
+    with col_right:
+        st.markdown("##### ⭐ 评分区域")
+
+        # 使用完整的 HTML 结构包裹整个右侧内容，并应用 CSS 滚动样式
+        scrollable_html = """
+        <style>
+            .scrollable-box {
+                max-height: 80vh;
+                overflow-y: auto;
+                padding: 10px;
+                border-left: 1px solid #ccc;
+                background-color: #f9f9f9;
+            }
+        </style>
+        <div class="scrollable-box">
+        """
+
+        # 渲染开始标签
+        st.markdown(scrollable_html, unsafe_allow_html=True)
+
+        # 调用评分函数，将其渲染在 div 内部
+        render_scoring(qid)
+
+        # 关闭 div 标签
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ========== 评分表单的函数 ==========
 def render_scoring(qid: str):
