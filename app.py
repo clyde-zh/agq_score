@@ -107,7 +107,7 @@ def display(message, qid):
     }
 
     # 左右列布局
-    col_left, col_right = st.columns([5, 4])
+    col_left, col_right = st.columns([3, 2])
 
     # ================= 左侧模型输出（A/B/C 横向排列） =================
     with col_left:
