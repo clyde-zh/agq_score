@@ -94,13 +94,13 @@ def render_scoring(qid: str):
     teacher_id = st.session_state.teacher_id
 
     dimensions = {
-        "知识点匹配度（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
-        "题型匹配度（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
-        "题目准确性（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
-        "解析准确性（0,1,2）": {"type": "radio", "options": [0, 1, 2]},
-        "素养导向性（0,2）": {"type": "radio", "options": [0, 2]},
-        "题目难度（简单,中等,困难）": {"type": "radio", "options": ["简单", "中等", "困难"]},
-        "模型回答质量排名（第1名,第2名,第3名）": {"type": "select", "options": ["未评分", "1", "2", "3"]}
+        "知识点匹配度：主要衡量模型生成题目是否能够准确识别并体现用户输入的知识点，确保所生成的题目符合用户指定的知识点。": {"type": "radio", "options": [0, 1, 2]},
+        "题型匹配度：主要考察题目类型是否与用户选择的题型（选择、填空、解答等）一致，且需符合所选题型的格式规范与标准要求。选择题应包含4个选项；填空题需给出填空横线，或其他形式能明显看出需要进行填空；解答题可包含选择、填空、计算等多种题型。": {"type": "radio", "options": [0, 1, 2]},
+        "题目准确性：主要考察生成题目的表达是否清晰、指向是否明确，术语使用是否规范标准，确保学生能准确理解题意，题目可正常解答且答案确定。": {"type": "radio", "options": [0, 1, 2]},
+        "解析准确性：主要考察模型生成题目后所提供解析的正确性、严谨性与详细程度，且解析内容所涉及的知识点与目标学段相适配。": {"type": "radio", "options": [0, 1, 2]},
+        "素养导向性：主要考察生成的题目是否设置了具体的情景，如文化生活场景、学科应用情景等。": {"type": "radio", "options": [0, 2]},
+        "题目难度：简单,中等,困难": {"type": "radio", "options": ["简单", "中等", "困难"]},
+        "模型回答质量排名：第1名,第2名,第3名": {"type": "select", "options": ["未评分", "1", "2", "3"]}
     }
 
     scores = st.session_state.all_scores[teacher_id].setdefault("result", {})
@@ -114,7 +114,7 @@ def render_scoring(qid: str):
     for dim_key, dim_info in dimensions.items():
         dim_type = dim_info["type"]
         options = dim_info["options"]
-        cleaned_dim = dim_key.split("（")[0]
+        cleaned_dim = dim_key.split("：")[0]
 
         st.markdown(f"**{dim_key}**")
         cols_inner = st.columns(3)
@@ -189,7 +189,8 @@ def is_question_scored(qid, scores_dict):
         "题型匹配度",
         "题目准确性",
         "解析准确性",
-        "素养导向性"
+        "素养导向性",
+        "题目难度"
     ]
 
     for model_key in ["spark", "glm", "o4"]:
@@ -209,6 +210,9 @@ def is_question_scored(qid, scores_dict):
             # 检查评语是否为空
             if comment is None or comment.strip() == "":
                 return False
+        rank = model_scores.get("模型回答质量排名_scores")
+        if rank is None or rank == "":
+            return False
 
     return True
 
@@ -338,23 +342,38 @@ def main():
 
     # ========== 页面导航 + 评分检查 ==========
     col1, col2, col3 = st.columns([1, 1, 1])
+    def save_current_scores(teacher_id, data, scores):
+        """封装保存函数，供多个按钮调用"""
+        merged_data = merge_scores_to_data(data, scores)
+        try:
+            with open(f"data_{teacher_id}.json", "w", encoding="utf-8") as f:
+                json.dump(merged_data, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception as e:
+            st.error(f"❌ 保存失败：{str(e)}")
+            return False
 
     with col1:
         if idx > 0:
-            if st.button("⬅️ 上一条"):
-                qid = data[idx].get("q_id", f"id_{idx}")
-                scores = st.session_state.all_scores[teacher_id]["result"]
-                if not is_question_scored(qid, scores):
-                    st.session_state.confirm_navigate = ("prev", teacher_id, qid)
+            is_current_complete = is_question_scored(qid, scores)
+            if st.button("⬅️ 上一条", disabled=not is_current_complete, use_container_width=True):
+                if is_current_complete:
+                    teacher_id = st.session_state.teacher_id
+                    data = st.session_state.raw_data
+                    scores = st.session_state.all_scores[teacher_id]["result"]
+                    success = save_current_scores(teacher_id, data, scores)
+
+                    if success:
+                        # 清除随机模型顺序
+                        if "shuffled_model_order" in st.session_state:
+                            del st.session_state.shuffled_model_order
+                        st.session_state.page -= 1
+                        st.rerun()
                 else:
-                    # 清除随机顺序标记
-                    if "shuffled_model_order" in st.session_state:
-                        del st.session_state.shuffled_model_order
-                    st.session_state.page -= 1
-                    st.rerun()
+                    st.warning("⚠️ 当前题目尚未完成评分和评语，请先完成后再继续。")
     with col2:
         # ========== 手动保存当前页评分 ==========
-        if st.button("💾 保存当前页评分"):
+        if st.button("💾 保存当前页评分", use_container_width=True):
             teacher_id = st.session_state.teacher_id
             idx = st.session_state.page
             data = st.session_state.raw_data
@@ -362,29 +381,32 @@ def main():
 
             scores = st.session_state.all_scores[teacher_id]["result"]
 
-            # 合并当前评分到原始数据
-            merged_data = merge_scores_to_data(data, scores)
+            # 调用 save_current_scores 函数保存数据
+            success = save_current_scores(teacher_id, data, scores)
 
-            # 写入文件
-            try:
-                with open(f"data_{teacher_id}.json", "w", encoding="utf-8") as f:
-                    json.dump(merged_data, f, indent=2, ensure_ascii=False)
+            if success:
                 st.success("✅ 当前页评分已手动保存。")
-            except Exception as e:
-                st.error(f"❌ 保存失败：{str(e)}")
+            else:
+                st.error("❌ 保存失败，请检查错误信息。")
     with col3:
         if idx < total_pages - 1:
-            if st.button("➡️ 下一条"):
-                qid = data[idx].get("q_id", f"id_{idx}")
-                scores = st.session_state.all_scores[teacher_id]["result"]
-                if not is_question_scored(qid, scores):
-                    st.session_state.confirm_navigate = ("next", teacher_id, qid)
+            is_current_complete = is_question_scored(qid, scores)
+
+            if st.button("➡️ 下一条", disabled=not is_current_complete, use_container_width=True):
+                if is_current_complete:
+                    teacher_id = st.session_state.teacher_id
+                    data = st.session_state.raw_data
+                    scores = st.session_state.all_scores[teacher_id]["result"]
+                    success = save_current_scores(teacher_id, data, scores)
+
+                    if success:
+                        # 清除随机模型顺序
+                        if "shuffled_model_order" in st.session_state:
+                            del st.session_state.shuffled_model_order
+                        st.session_state.page += 1
+                        st.rerun()
                 else:
-                    # 清除随机顺序标记
-                    if "shuffled_model_order" in st.session_state:
-                        del st.session_state.shuffled_model_order
-                    st.session_state.page += 1
-                    st.rerun()
+                    st.warning("⚠️ 当前题目尚未完成评分和评语，请先完成后再继续。")
 
     # ========== 处理确认切换逻辑 ==========
     if st.session_state.confirm_navigate:
