@@ -92,62 +92,47 @@ def display(message, qid):
     st.markdown("###### 用户需求：")
     st.markdown(message["query"])
 
-    # ========== 使用双列布局 ==========
-    col_left, col_right = st.columns([2, 2])  # 左右比例为 3:2
+    # 初始化模型顺序
+    original_models = ["spark", "glm", "o4"]
+    if "shuffled_model_order" not in st.session_state:
+        shuffled_order = random.sample(original_models, k=3)
+        st.session_state.shuffled_model_order = shuffled_order
+    else:
+        shuffled_order = st.session_state.shuffled_model_order
 
+    gen_questions = {
+        "spark": message["gen_question_spark"],
+        "glm": message["gen_question_glm"],
+        "o4": message["gen_question_o4"]
+    }
+
+    # 左右列布局
+    col_left, col_right = st.columns([5, 4])
+
+    # ================= 左侧模型输出（A/B/C 横向排列） =================
     with col_left:
         st.markdown("##### 📊 模型 A / B / C 输出内容展示")
 
-        # 定义原始模型键列表
-        original_models = ["spark", "glm", "o4"]
-
-        # 获取模型输出字段
-        gen_questions = {
-            "spark": message["gen_question_spark"],
-            "glm": message["gen_question_glm"],
-            "o4": message["gen_question_o4"]
-        }
-
-        # 如果尚未设置，则生成并保存随机顺序
-        if "shuffled_model_order" not in st.session_state:
-            shuffled_order = random.sample(original_models, k=3)
-            st.session_state.shuffled_model_order = shuffled_order
-        else:
-            shuffled_order = st.session_state.shuffled_model_order
-
-        # 固定列标题为“模型 A / B / C”
         col_a, col_b, col_c = st.columns(3)
         cols = [col_a, col_b, col_c]
 
         for i, model_key in enumerate(shuffled_order):
             with cols[i]:
-                st.markdown("##### 模型 " + chr(65 + i))  # 固定显示 A/B/C 标题
+                st.markdown(f"###### 模型 {chr(65 + i)}")
                 render_latex_textblock(gen_questions[model_key])
 
+    # ================= 右侧评分区域（可滚动） =================
     with col_right:
         st.markdown("##### ⭐ 评分区域")
 
-        # 使用完整的 HTML 结构包裹整个右侧内容，并应用 CSS 滚动样式
-        scrollable_html = """
-        <style>
-            .scrollable-box {
-                max-height: 80vh;
-                overflow-y: auto;
-                padding: 10px;
-                border-left: 1px solid #ccc;
-                background-color: #f9f9f9;
-            }
-        </style>
-        <div class="scrollable-box">
-        """
+        # 用HTML构造一个滚动容器包住评分组件
+        st.markdown("""
+        <div style='max-height: 70vh; overflow-y: auto; padding-right: 10px; border: 1px solid #ccc; background-color: #f9f9f9;'>
+        """, unsafe_allow_html=True)
 
-        # 渲染开始标签
-        st.markdown(scrollable_html, unsafe_allow_html=True)
-
-        # 调用评分函数，将其渲染在 div 内部
+        # 这里的 render_scoring 只能输出 markdown/HTML，不能用 Streamlit 表单类组件
         render_scoring(qid)
 
-        # 关闭 div 标签
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ========== 评分表单的函数 ==========
@@ -237,6 +222,65 @@ def render_scoring(qid: str):
                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
                 else:
                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = ""
+# def render_scoring(qid: str):
+#     teacher_id = st.session_state.teacher_id
+#
+#     dimensions = {
+#         "知识点匹配度：...": {"type": "radio", "options": [0, 1, 2]},
+#         "题型匹配度：...": {"type": "radio", "options": [0, 1, 2]},
+#         "题目准确性：...": {"type": "radio", "options": [0, 1, 2]},
+#         "解析准确性：...": {"type": "radio", "options": [0, 1, 2]},
+#         "素养导向性：...": {"type": "radio", "options": [0, 2]},
+#         "题目难度：简单,中等,困难": {"type": "radio", "options": ["简单", "中等", "困难"]},
+#         "模型回答质量排名：...": {"type": "select", "options": ["未评分", "1", "2", "3"]}
+#     }
+#
+#     scores = st.session_state.all_scores[teacher_id].setdefault("result", {})
+#     key = f"{qid}"
+#     scores.setdefault(key, {})
+#
+#     if "shuffled_model_order" not in st.session_state:
+#         st.session_state.shuffled_model_order = ["spark", "glm", "o4"]
+#     shuffled_order = st.session_state.shuffled_model_order
+#
+#     for dim_key, dim_info in dimensions.items():
+#         dim_type = dim_info["type"]
+#         options = dim_info["options"]
+#         cleaned_dim = dim_key.split("：")[0]
+#
+#         with st.expander(f"📌 {cleaned_dim}", expanded=False):
+#             st.markdown(f"**{dim_key}**")
+#             cols_inner = st.columns(3)
+#
+#             for i in range(3):
+#                 model_key_real = shuffled_order[i]
+#                 model_name = f"模型 {chr(65 + i)}"
+#                 key_score = f"{key}_{cleaned_dim}_score_{model_key_real}"
+#                 key_comment = f"{key}_{cleaned_dim}_comment_{model_key_real}"
+#
+#                 scores[key].setdefault(model_key_real, {})
+#
+#                 prev_score = scores[key][model_key_real].get(f"{cleaned_dim}_scores", "")
+#                 prev_comment = scores[key][model_key_real].get(f"{cleaned_dim}_comments", "")
+#
+#                 try:
+#                     index = options.index(prev_score) if prev_score != "" else 0
+#                 except ValueError:
+#                     index = 0
+#
+#                 if dim_type == "radio":
+#                     val_score = cols_inner[i].radio(model_name, options, key=key_score, index=index)
+#                     cols_inner[i].caption("✅ 已评分" if val_score is not None else "⚠️ 尚未评分")
+#                     comment = cols_inner[i].text_area("评语", value=prev_comment, key=key_comment, height=70)
+#                     cols_inner[i].caption("✅ 评语已填写" if comment.strip() else "⚠️ 尚未填写评语")
+#                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
+#                     scores[key][model_key_real][f"{cleaned_dim}_comments"] = comment
+#
+#                 elif dim_type == "select":
+#                     val_score = cols_inner[i].selectbox(model_name, options, index=index, key=key_score)
+#                     cols_inner[i].caption("✅ 已选第 {} 名".format(val_score) if val_score != "未评分" else "⚠️ 尚未评分")
+#                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
+
 
 
 # ========== 检查评分是否完成（仅检查评分，不检查评语）==========
@@ -305,6 +349,7 @@ def is_comment_filled(qid, scores_dict):
 
 # ========== 主程序入口 ==========
 def main():
+
     if "confirm_navigate" not in st.session_state:
         st.session_state.confirm_navigate = None
 
