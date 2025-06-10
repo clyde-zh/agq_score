@@ -269,9 +269,9 @@ def render_scoring(qid: str):
                 prev_comment = scores[key][model_key_real].get(f"{cleaned_dim}_comments", "")
 
                 try:
-                    index = options.index(prev_score) if prev_score != "" else 0
+                    index = options.index(prev_score) if prev_score != "" else None
                 except ValueError:
-                    index = 0
+                    index = None
 
                 if dim_type == "radio":
                     val_score = cols_inner[i].radio(model_name, options, key=key_score, index=index)
