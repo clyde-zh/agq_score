@@ -222,64 +222,69 @@ def render_scoring(qid: str):
                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
                 else:
                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = ""
-# def render_scoring(qid: str):
-#     teacher_id = st.session_state.teacher_id
-#
-#     dimensions = {
-#         "知识点匹配度：...": {"type": "radio", "options": [0, 1, 2]},
-#         "题型匹配度：...": {"type": "radio", "options": [0, 1, 2]},
-#         "题目准确性：...": {"type": "radio", "options": [0, 1, 2]},
-#         "解析准确性：...": {"type": "radio", "options": [0, 1, 2]},
-#         "素养导向性：...": {"type": "radio", "options": [0, 2]},
-#         "题目难度：简单,中等,困难": {"type": "radio", "options": ["简单", "中等", "困难"]},
-#         "模型回答质量排名：...": {"type": "select", "options": ["未评分", "1", "2", "3"]}
-#     }
-#
-#     scores = st.session_state.all_scores[teacher_id].setdefault("result", {})
-#     key = f"{qid}"
-#     scores.setdefault(key, {})
-#
-#     if "shuffled_model_order" not in st.session_state:
-#         st.session_state.shuffled_model_order = ["spark", "glm", "o4"]
-#     shuffled_order = st.session_state.shuffled_model_order
-#
-#     for dim_key, dim_info in dimensions.items():
-#         dim_type = dim_info["type"]
-#         options = dim_info["options"]
-#         cleaned_dim = dim_key.split("：")[0]
-#
-#         with st.expander(f"📌 {cleaned_dim}", expanded=False):
-#             st.markdown(f"**{dim_key}**")
-#             cols_inner = st.columns(3)
-#
-#             for i in range(3):
-#                 model_key_real = shuffled_order[i]
-#                 model_name = f"模型 {chr(65 + i)}"
-#                 key_score = f"{key}_{cleaned_dim}_score_{model_key_real}"
-#                 key_comment = f"{key}_{cleaned_dim}_comment_{model_key_real}"
-#
-#                 scores[key].setdefault(model_key_real, {})
-#
-#                 prev_score = scores[key][model_key_real].get(f"{cleaned_dim}_scores", "")
-#                 prev_comment = scores[key][model_key_real].get(f"{cleaned_dim}_comments", "")
-#
-#                 try:
-#                     index = options.index(prev_score) if prev_score != "" else 0
-#                 except ValueError:
-#                     index = 0
-#
-#                 if dim_type == "radio":
-#                     val_score = cols_inner[i].radio(model_name, options, key=key_score, index=index)
-#                     cols_inner[i].caption("✅ 已评分" if val_score is not None else "⚠️ 尚未评分")
-#                     comment = cols_inner[i].text_area("评语", value=prev_comment, key=key_comment, height=70)
-#                     cols_inner[i].caption("✅ 评语已填写" if comment.strip() else "⚠️ 尚未填写评语")
-#                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
-#                     scores[key][model_key_real][f"{cleaned_dim}_comments"] = comment
-#
-#                 elif dim_type == "select":
-#                     val_score = cols_inner[i].selectbox(model_name, options, index=index, key=key_score)
-#                     cols_inner[i].caption("✅ 已选第 {} 名".format(val_score) if val_score != "未评分" else "⚠️ 尚未评分")
-#                     scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
+def render_scoring(qid: str):
+    teacher_id = st.session_state.teacher_id
+
+    dimensions = {
+        "知识点匹配度：主要衡量模型生成题目是否能够准确识别并体现用户输入的知识点，确保所生成的题目符合用户指定的知识点。": {
+            "type": "radio", "options": [0, 1, 2]},
+        "题型匹配度：主要考察题目类型是否与用户选择的题型（选择、填空、解答等）一致，且需符合所选题型的格式规范与标准要求。选择题应包含4个选项；填空题需给出填空横线，或其他形式能明显看出需要进行填空；解答题可包含选择、填空、计算等多种题型。": {
+            "type": "radio", "options": [0, 1, 2]},
+        "题目准确性：主要考察生成题目的表达是否清晰、指向是否明确，术语使用是否规范标准，确保学生能准确理解题意，题目可正常解答且答案确定。": {
+            "type": "radio", "options": [0, 1, 2]},
+        "解析准确性：主要考察模型生成题目后所提供解析的正确性、严谨性与详细程度，且解析内容所涉及的知识点与目标学段相适配。": {
+            "type": "radio", "options": [0, 1, 2]},
+        "素养导向性：主要考察生成的题目是否设置了具体的情景，如文化生活场景、学科应用情景等。": {"type": "radio",
+                                                                                             "options": [0, 2]},
+        "题目难度：简单,中等,困难": {"type": "radio", "options": ["简单", "中等", "困难"]},
+        "模型回答质量排名：第1名,第2名,第3名": {"type": "select", "options": ["未评分", "1", "2", "3"]}
+    }
+
+    scores = st.session_state.all_scores[teacher_id].setdefault("result", {})
+    key = f"{qid}"
+    scores.setdefault(key, {})
+
+    if "shuffled_model_order" not in st.session_state:
+        st.session_state.shuffled_model_order = ["spark", "glm", "o4"]
+    shuffled_order = st.session_state.shuffled_model_order
+
+    for dim_key, dim_info in dimensions.items():
+        dim_type = dim_info["type"]
+        options = dim_info["options"]
+        cleaned_dim = dim_key.split("：")[0]
+
+        with st.expander(f"📌 {cleaned_dim}", expanded=False):
+            st.markdown(f"**{dim_key}**")
+            cols_inner = st.columns(3)
+
+            for i in range(3):
+                model_key_real = shuffled_order[i]
+                model_name = f"模型 {chr(65 + i)}"
+                key_score = f"{key}_{cleaned_dim}_score_{model_key_real}"
+                key_comment = f"{key}_{cleaned_dim}_comment_{model_key_real}"
+
+                scores[key].setdefault(model_key_real, {})
+
+                prev_score = scores[key][model_key_real].get(f"{cleaned_dim}_scores", "")
+                prev_comment = scores[key][model_key_real].get(f"{cleaned_dim}_comments", "")
+
+                try:
+                    index = options.index(prev_score) if prev_score != "" else 0
+                except ValueError:
+                    index = 0
+
+                if dim_type == "radio":
+                    val_score = cols_inner[i].radio(model_name, options, key=key_score, index=index)
+                    cols_inner[i].caption("✅ 已评分" if val_score is not None else "⚠️ 尚未评分")
+                    comment = cols_inner[i].text_area("评语", value=prev_comment, key=key_comment, height=70)
+                    cols_inner[i].caption("✅ 评语已填写" if comment.strip() else "⚠️ 尚未填写评语")
+                    scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
+                    scores[key][model_key_real][f"{cleaned_dim}_comments"] = comment
+
+                elif dim_type == "select":
+                    val_score = cols_inner[i].selectbox(model_name, options, index=index, key=key_score)
+                    cols_inner[i].caption("✅ 已选第 {} 名".format(val_score) if val_score != "未评分" else "⚠️ 尚未评分")
+                    scores[key][model_key_real][f"{cleaned_dim}_scores"] = val_score
 
 
 
