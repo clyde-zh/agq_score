@@ -554,7 +554,7 @@ def main():
         json_str = json.dumps(merged_data, indent=2, ensure_ascii=False)
         b64 = base64.b64encode(json_str.encode("utf-8")).decode()
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"评分结果_{teacher_id}_{timestamp}.json"
+        filename = f"出题评分结果_{teacher_id}_{timestamp}.json"
         href = f'<a href="data:application/json;base64,{b64}" download="{filename}">📥 点击下载完整评分数据</a>'
         st.markdown(href, unsafe_allow_html=True)
 
