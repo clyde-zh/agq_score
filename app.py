@@ -361,7 +361,7 @@ def main():
     # 确保 teacher_id 已经设置
     if "teacher_id" not in st.session_state:
         # 如果没有 teacher_id，则显示输入界面
-        st.title("教师评测系统")
+        st.title("智能出题教师评测系统")
         st.markdown("请输入您的教师编号（例如 T001）：")
         teacher_input = st.text_input("教师编号", "")
         if st.button("开始评测") and teacher_input.strip():
